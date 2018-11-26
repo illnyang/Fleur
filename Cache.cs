@@ -63,7 +63,7 @@ namespace Fleur
 
             Logger.Info("\nCaching: {0}\nPages-count: {1}", uniqueName, fullBook.Pages.Length);
 
-            var cacheBookPath = Path.Combine(Program.Config.CachePath, $"books\\{fullBook.Id}\\");
+            var cacheBookPath = Path.Combine(Program.Config.CachePath, "books", fullBook.Id.ToString());
 
             if (Directory.Exists(cacheBookPath))
             {
