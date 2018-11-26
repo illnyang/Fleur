@@ -58,7 +58,7 @@ namespace Fleur
 
                 Logger.Info("\nDumping: {0}\nPages-count: {1}", uniqueName, fullBook.Pages.Length);
 
-                var outBookPath = Path.Combine(Program.Config.OutputPath, $"{FileUtils.MakeValidFileName(uniqueName)}\\");
+                var outBookPath = Path.Combine(Program.Config.OutputPath, $"{FileUtils.MakeValidFileName(uniqueName)}");
 
                 Directory.CreateDirectory(outBookPath);
 
