@@ -49,7 +49,7 @@ namespace Fleur
             var content = await response.Content.ReadAsStringAsync();
             var result = JsonConvert.DeserializeObject<List<Book>>(content);
 
-            // skip books we don't have access too if availableGrades is specified
+            // skip books we don't have access to if availableGrades is specified
             if (availableGrades != null)
             {
                 for (var i = result.Count - 1; i >= 0; i--)
