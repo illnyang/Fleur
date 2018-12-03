@@ -13,15 +13,15 @@ namespace Fleur
         {
             var config = new NLog.Config.LoggingConfiguration();
 
-            var logconsole = new NLog.Targets.ColoredConsoleTarget("logconsole");
-            var async_logconsole = new AsyncTargetWrapper(logconsole);
-            config.AddRule(LogLevel.Debug, LogLevel.Fatal, async_logconsole);
+            var logConsole = new NLog.Targets.ColoredConsoleTarget("logconsole");
+            var asyncLogConsole = new AsyncTargetWrapper(logConsole);
+            config.AddRule(LogLevel.Debug, LogLevel.Fatal, asyncLogConsole);
 
             if (logToFile)
             {
-                var logfile = new NLog.Targets.FileTarget("logfile") { FileName = logFileName };
-                var async_logfile = new AsyncTargetWrapper(logfile);
-                config.AddRule(LogLevel.Info, LogLevel.Fatal, async_logfile);
+                var logFile = new NLog.Targets.FileTarget("logfile") { FileName = logFileName };
+                var asyncLogFile = new AsyncTargetWrapper(logFile);
+                config.AddRule(LogLevel.Info, LogLevel.Fatal, asyncLogFile);
             }
 
             LogManager.Configuration = config;
