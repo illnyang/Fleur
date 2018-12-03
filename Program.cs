@@ -101,14 +101,21 @@ namespace Fleur
                 {
                     if (shouldCache)
                         await Cache.UpdateCache(new NetworkedRawProvider(sessionCookie));
-
-                    if (shouldDump)
-                        await StaticGenerator.GenerateFromProvider(new CachedRawProvider(Config.CachePath));
                 }
                 catch (Exception ex)
                 {
                     Logger.Error(ex.ToString);
                 }
+            }
+
+            try
+            {
+                if (shouldDump)
+                    await StaticGenerator.GenerateFromProvider(new CachedRawProvider(Config.CachePath));
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex.ToString);
             }
 
             Logger.Info("Done!");
