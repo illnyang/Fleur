@@ -104,7 +104,7 @@ namespace Fleur
                         await Cache.UpdateCache(client);
 
                     if (shouldDump)
-                        await Dumper.DumpFromCache();
+                        await StaticGenerator.GenerateFromCache();
                 }
                 catch (Exception ex)
                 {

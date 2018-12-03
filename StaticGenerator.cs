@@ -13,10 +13,10 @@ using Scriban;
 
 namespace Fleur
 {
-    internal static class Dumper
+    internal static class StaticGenerator
     {
         // TODO: networked dump so we don't deserialize twice on first run?
-        public static async Task DumpFromCache()
+        public static async Task GenerateFromCache()
         {
             // copy resources beforehand
             var outResourcesPath = Path.Combine(Program.Config.OutputPath, Path.GetFileNameWithoutExtension(Program.Config.ResourcesPath));
@@ -56,7 +56,7 @@ namespace Fleur
 
                 var uniqueName = $"{fullBook.Name.Trim()} ({fullBook.Kind}) ({fullBook.Released})";
 
-                Logger.Info("\nDumping: {0}\nPages-count: {1}", uniqueName, fullBook.Pages.Length);
+                Logger.Info("\nGenerating: {0}\nPages-count: {1}", uniqueName, fullBook.Pages.Length);
 
                 var outBookPath = Path.Combine(Program.Config.OutputPath, fullBook.Subject, FileUtils.MakeValidFileName(uniqueName));
 
