@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Threading.Tasks;
+using Fleur.RawProviders;
 using Newtonsoft.Json;
 using NLog;
 using NLog.Targets.Wrappers;
@@ -98,13 +99,11 @@ namespace Fleur
             {
                 try
                 {
-                    var client = new Client(sessionCookie);
-
                     if (shouldCache)
-                        await Cache.UpdateCache(client);
+                        await Cache.UpdateCache(new NetworkedRawProvider(sessionCookie));
 
                     if (shouldDump)
-                        await StaticGenerator.GenerateFromCache();
+                        await StaticGenerator.GenerateFromProvider(new CachedRawProvider(Config.CachePath));
                 }
                 catch (Exception ex)
                 {

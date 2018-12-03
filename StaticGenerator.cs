@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using AngleSharp.Parser.Html;
 using Fleur.Models;
+using Fleur.RawProviders;
 using Fleur.Utils;
 using Newtonsoft.Json;
 using NLog;
@@ -14,7 +15,7 @@ namespace Fleur
     internal static class StaticGenerator
     {
         // TODO: networked dump so we don't deserialize twice on first run?
-        public static async Task GenerateFromCache()
+        public static async Task GenerateFromProvider(IRawProvider provider)
         {
             // copy resources beforehand
             var outResourcesPath = Path.Combine(Program.Config.OutputPath, Path.GetFileNameWithoutExtension(Program.Config.ResourcesPath));
@@ -31,26 +32,30 @@ namespace Fleur
             {
                 File.Copy(newPath, newPath.Replace(Program.Config.ResourcesPath, outResourcesPath), true);
             }
-
+            
             // traverse cache
-            var cacheBookPath = Path.Combine(Program.Config.CachePath, "books");
+            var allBooksRaw = await provider.GetAllBooks();
+            var allBooks = RawToModel.GetAllBooks(allBooksRaw);
 
-            if (!Directory.Exists(cacheBookPath))
+            foreach (var book in allBooks)
             {
-                Logger.Error("No cache to traverse!");
-            }
+                var bookRaw = await provider.GetBook(book.Id);
 
-            foreach (var dir in Directory.GetDirectories(cacheBookPath, "*"))
-            {
+                if (bookRaw == null)
+                {
+                    continue;
+                }
+
+                var fullBook = RawToModel.GetBook(bookRaw);
+
+                var dir = Path.Combine(Program.Config.CachePath, "books", fullBook.Id.ToString());
+
                 var indexPath = Path.Combine(dir, "index.json");
 
                 if (!File.Exists(indexPath))
                 {
                     continue;
                 }
-
-                var content = await File.ReadAllTextAsync(indexPath);
-                var fullBook = JsonConvert.DeserializeObject<Book>(content);
 
                 var uniqueName = $"{fullBook.Name.Trim()} ({fullBook.Kind}) ({fullBook.Released})";
 
@@ -63,15 +68,10 @@ namespace Fleur
                 await File.WriteAllTextAsync(Path.Combine(outBookPath, "0000.html"),
                     FrontPageTemplate.Render(new { Book = fullBook, ResourcesPath = Path.GetFileNameWithoutExtension(Program.Config.ResourcesPath) }));
 
-                foreach (var file in Directory.GetFiles(dir, "*.json"))
+                foreach (var page in fullBook.Pages)
                 {
-                    if (file.EndsWith("index.json"))
-                    {
-                        continue;
-                    }
-
-                    var pageContent = await File.ReadAllTextAsync(file);
-                    var exercises = JsonConvert.DeserializeObject<Exercise[]>(pageContent);
+                    var exercisesRaw = await provider.GetExercisesFromPage(fullBook.Id, page);
+                    var exercises = RawToModel.GetExercisesFromPage(exercisesRaw);
 
                     var parser = new HtmlParser();
 
@@ -107,10 +107,10 @@ namespace Fleur
                         ex.Solution = document.DocumentElement.OuterHtml;
                     }
 
-                    await File.WriteAllTextAsync(Path.Combine(outBookPath, $"{Path.GetFileNameWithoutExtension(file)}.html"),
+                    await File.WriteAllTextAsync(Path.Combine(outBookPath, $"{page:D4}.html"),
                         PageTemplate.Render(new { Exercises = exercises, ResourcesPath = Path.GetFileNameWithoutExtension(Program.Config.ResourcesPath) }));
 
-                    Logger.Info("Processed cache file {0}", Path.GetFileName(file));
+                    Logger.Info("Processed cache file {0}", $"{page:D4}.json");
                 }
             }
         }

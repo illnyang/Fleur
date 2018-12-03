@@ -1,32 +1,16 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Fleur.Models;
-using Newtonsoft.Json;
 using NLog;
 
-namespace Fleur
+namespace Fleur.RawProviders
 {
-    internal class Client
+    internal class NetworkedRawProvider : IRawProvider
     {
-        public class ModelRawPair<T>
-        {
-            public ModelRawPair(T model, string rawContent)
-            {
-                Model = model;
-                RawContent = rawContent;
-            }
-
-            public T Model { get; }
-            public string RawContent { get; }
-        }
-
         private const string BaseAddress = "https://odrabiamy.pl/";
 
-        public Client(string sessionCookie)
+        public NetworkedRawProvider(string sessionCookie)
         {
             var cookies = new CookieContainer();
             cookies.Add(new Uri("https://odrabiamy.pl"), new Cookie("_dajspisac_session_id", sessionCookie));
@@ -36,7 +20,7 @@ namespace Fleur
             _client.DefaultRequestHeaders.Add("User-Agent", @"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.87 Safari/537.36");
         }
 
-        public async Task<ModelRawPair<List<Book>>> GetAllBooks(string[] availableGrades = null)
+        public async Task<string> GetAllBooks()
         {
             var response = await _client.GetAsync(BuildRequestUri("api/v1.3/ksiazki"));
 
@@ -46,29 +30,10 @@ namespace Fleur
                 return null;
             }
 
-            var content = await response.Content.ReadAsStringAsync();
-            var result = JsonConvert.DeserializeObject<List<Book>>(content);
-
-            // skip books we don't have access to if availableGrades is specified
-            if (availableGrades != null)
-            {
-                for (var i = result.Count - 1; i >= 0; i--)
-                {
-                    var book = result[i];
-
-                    if (availableGrades.Except(book.Grades).Any())
-                    {
-                        result.RemoveAt(i);
-                    }
-                }
-            }
-
-            Logger.Info("Found {0} books.", result.Count);
-
-            return new ModelRawPair<List<Book>>(result, content);
+            return await response.Content.ReadAsStringAsync();
         }
 
-        public async Task<ModelRawPair<Book>> GetBook(long bookId)
+        public async Task<string> GetBook(long bookId)
         {
             var response = await _client.GetAsync(BuildRequestUri("api/v1.3/ksiazki/{0}", bookId));
 
@@ -78,13 +43,10 @@ namespace Fleur
                 return null;
             }
 
-            var content = await response.Content.ReadAsStringAsync();
-            var result = JsonConvert.DeserializeObject<Book>(content);
-
-            return new ModelRawPair<Book>(result, content);
+            return await response.Content.ReadAsStringAsync();
         }
 
-        public async Task<ModelRawPair<Exercise[]>> GetExercisesFromPage(long bookId, long page)
+        public async Task<string> GetExercisesFromPage(long bookId, long page)
         {
             var response = await _client.GetAsync(BuildRequestUri("api/v1.3/ksiazki/{0}/zadania/strona/{1}/premium", bookId, page));
 
@@ -98,13 +60,10 @@ namespace Fleur
                 return null;
             }
 
-            var content = await response.Content.ReadAsStringAsync();
-            var result = JsonConvert.DeserializeObject<Exercise[]>(await response.Content.ReadAsStringAsync());
-
-            return new ModelRawPair<Exercise[]>(result, content);
+            return await response.Content.ReadAsStringAsync();
         }
 
-        public async Task<ModelRawPair<UserInfo>> GetUserInfo()
+        public async Task<string> GetUserInfo(long userId = 0)
         {
             var response = await _client.GetAsync(BuildRequestUri("api/v1.3/uzytkownicy/aktualny"));
 
@@ -114,10 +73,7 @@ namespace Fleur
                 return null;
             }
 
-            var content = await response.Content.ReadAsStringAsync();
-            var result = JsonConvert.DeserializeObject<UserInfo>(content);
-
-            return new ModelRawPair<UserInfo>(result, content);
+            return await response.Content.ReadAsStringAsync();
         }
 
         private string BuildRequestUri(string method, params object[] args)

@@ -3,20 +3,23 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Fleur.Models;
+using Fleur.RawProviders;
+using Fleur.Utils;
+using Newtonsoft.Json;
 using NLog;
 
 namespace Fleur
 {
     internal static class Cache
     {
-        public static async Task UpdateCache(Client client)
+        public static async Task UpdateCache(IRawProvider provider)
         {
             var cacheUserPath = Path.Combine(Program.Config.CachePath, "users");
             Directory.CreateDirectory(cacheUserPath);
 
-            var response = await client.GetUserInfo();
+            var response = await provider.GetUserInfo();
 
-            var userInfo = response.Model;
+            var userInfo = RawToModel.GetUserInfo(response);
 
             if (!userInfo.IsPremium)
             {
@@ -28,33 +31,33 @@ namespace Fleur
                 throw new Exception($"User {userInfo.Name} has no subscriptions available.");
             }
 
-            await File.WriteAllTextAsync(Path.Combine(cacheUserPath, $"{userInfo.Id}.json"),
-                response.RawContent);
+            await File.WriteAllTextAsync(Path.Combine(cacheUserPath, $"{userInfo.Id}.json"), response);
 
-            await Work(client, userInfo.ActiveSubscriptions.Select(sub => sub.Grade).ToArray());
+            await Work(provider, userInfo.ActiveSubscriptions.Select(sub => sub.Grade).ToArray());
         }
 
-        private static async Task Work(Client client, string[] availableGrades)
+        private static async Task Work(IRawProvider provider, string[] availableGrades)
         {
             var cacheBookPath = Path.Combine(Program.Config.CachePath, "books");
             Directory.CreateDirectory(cacheBookPath);
 
-            var response = await client.GetAllBooks(availableGrades);
+            var response = await provider.GetAllBooks();
 
-            await File.WriteAllTextAsync(Path.Combine(cacheBookPath, "index.json"), response.RawContent);
+            var books = RawToModel.GetAllBooks(response, availableGrades);
 
-            var books = response.Model;
+            var processedBooksRaw = JsonConvert.SerializeObject(books, Formatting.None);
+            await File.WriteAllTextAsync(Path.Combine(cacheBookPath, "index.json"), processedBooksRaw);
 
             foreach (var book in books)
             {
-                await CacheBook(client, book);
+                await CacheBook(provider, book);
             }
         }
 
-        private static async Task CacheBook(Client client, Book book)
+        private static async Task CacheBook(IRawProvider provider, Book book)
         {
-            var fullResponse = await client.GetBook(book.Id);
-            var fullBook = fullResponse.Model;
+            var fullResponse = await provider.GetBook(book.Id);
+            var fullBook = RawToModel.GetBook(fullResponse);
 
             var uniqueName = $"{fullBook.Name.Trim()} ({fullBook.Kind}) ({fullBook.Released})";
 
@@ -69,18 +72,17 @@ namespace Fleur
 
             Directory.CreateDirectory(cacheBookPath);
 
-            await File.WriteAllTextAsync(Path.Combine(cacheBookPath, "index.json"),
-                fullResponse.RawContent);
+            await File.WriteAllTextAsync(Path.Combine(cacheBookPath, "index.json"), fullResponse);
 
             foreach (var page in fullBook.Pages)
             {
-                await CachePage(client, fullBook, page, cacheBookPath);
+                await CachePage(provider, fullBook, page, cacheBookPath);
             }
         }
 
-        private static async Task CachePage(Client client, Book fullBook, long page, string cacheBookPath)
+        private static async Task CachePage(IRawProvider provider, Book fullBook, long page, string cacheBookPath)
         {
-            var exercisesResponse = await client.GetExercisesFromPage(fullBook.Id, page);
+            var exercisesResponse = await provider.GetExercisesFromPage(fullBook.Id, page);
 
             if (exercisesResponse == null)
             {
@@ -88,8 +90,7 @@ namespace Fleur
                 return;
             }
 
-            await File.WriteAllTextAsync(Path.Combine(cacheBookPath, $"{page:D4}.json"),
-                exercisesResponse.RawContent);
+            await File.WriteAllTextAsync(Path.Combine(cacheBookPath, $"{page:D4}.json"), exercisesResponse);
 
             Logger.Info("Cached page {0}", page);
         }
